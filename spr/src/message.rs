@@ -28,8 +28,8 @@ pub fn message_section_label(section: &MessageSection) -> &'static str {
         Title => "Title",
         Summary => "Summary",
         Reviewers => "Reviewers",
-        ReviewedBy => "Reviewed By",
-        PullRequest => "Pull Request",
+        ReviewedBy => "Reviewed-by",
+        PullRequest => "Reviewed-on",
     }
 }
 
@@ -41,14 +41,14 @@ pub fn message_section_by_label(label: &str) -> Option<MessageSection> {
         "summary" => Some(Summary),
         "reviewer" => Some(Reviewers),
         "reviewers" => Some(Reviewers),
-        "reviewed by" => Some(ReviewedBy),
-        "pull request" => Some(PullRequest),
+        "reviewed-by" => Some(ReviewedBy),
+        "reviewed-on" => Some(PullRequest),
         _ => None,
     }
 }
 
 pub fn parse_message(msg: &str, top_section: MessageSection) -> MessageSectionsMap {
-    let regex = lazy_regex::regex!(r#"^\s*([\w\s]+?)\s*:\s*(.*)$"#);
+    let regex = lazy_regex::regex!(r#"^\s*([\w\s-]+?)\s*:\s*(.*)$"#);
 
     let mut section = top_section;
     let mut lines_in_section = Vec::<&str>::new();
@@ -111,7 +111,7 @@ fn append_to_message_section(
 
 pub fn build_message(section_texts: &MessageSectionsMap, sections: &[MessageSection]) -> String {
     let mut result = String::new();
-    let mut display_label = false;
+    let mut trailer = false;
 
     for section in sections {
         let value = section_texts.get(section);
@@ -123,21 +123,21 @@ pub fn build_message(section_texts: &MessageSectionsMap, sections: &[MessageSect
             if section != &MessageSection::Title && section != &MessageSection::Summary {
                 // Once we encounter a section that's neither Title nor Summary,
                 // we start displaying the labels.
-                display_label = true;
+                trailer = true;
             }
 
-            if display_label {
+            if trailer {
                 let label = message_section_label(section);
                 result.push_str(label);
-                result.push_str(if label.len() + text.len() > 76 || text.contains('\n') {
-                    ":\n"
-                } else {
-                    ": "
-                });
+                result.push_str(": ");
             }
 
             result.push_str(text);
-            result.push('\n');
+            // we want additional empty lines between title<->section and between
+            // section<->trailers
+            if !trailer {
+                result.push('\n');
+            }
         }
     }
 
@@ -190,6 +190,45 @@ pub fn validate_commit_message(message: &MessageSectionsMap) -> Result<()> {
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
+
+    #[test]
+    fn test_build_message() {
+        assert_eq!(
+            build_message(
+                &[
+                    (MessageSection::Title, "foo: do thing".to_string()),
+                    (MessageSection::Summary, "Thing was did.".to_string()),
+                    (MessageSection::ReviewedBy, "someguy".to_string()),
+                    (MessageSection::PullRequest, "https://github.com/example/example/pull/1234".to_string()),
+                ].into(),
+                &[
+                    MessageSection::Title,
+                    MessageSection::Summary,
+                    MessageSection::Reviewers,
+                    MessageSection::ReviewedBy,
+                    MessageSection::PullRequest,
+                ],
+            ),
+                r#"foo: do thing
+
+Thing was did.
+
+Reviewed-by: someguy
+Reviewed-on: https://github.com/example/example/pull/1234"#,
+        )
+    }
+
+    #[test]
+    fn test_parse_pr() {
+        assert_eq!(
+            parse_message("title\n\nmsg\n\nReviewed-on: https://github.com/example/example/pull/1234", MessageSection::Title),
+            [
+                (MessageSection::Title, "title".to_string()),
+                (MessageSection::Summary, "msg".to_string()),
+                (MessageSection::PullRequest, "https://github.com/example/example/pull/1234".to_string())
+            ].into()
+        );
+    }
 
     #[test]
     fn test_parse_empty() {
