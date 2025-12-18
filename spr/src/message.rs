@@ -119,6 +119,9 @@ pub fn build_message(section_texts: &MessageSectionsMap, sections: &[MessageSect
             if !result.is_empty() {
                 result.push('\n');
             }
+            if trailer && text.is_empty() {
+                continue;
+            }
 
             if section != &MessageSection::Title && section != &MessageSection::Summary {
                 // Once we encounter a section that's neither Title nor Summary,
