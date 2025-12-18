@@ -25,8 +25,8 @@ git2-ext = "0.6.0"
 graphql_client = "^0.14.0"
 indoc = "^2.0.6"
 lazy-regex = "^3.4.1"
-octocrab = { version = "^0.48.0", default-features = false, features = ["rustls", "rustls-ring", "default-client"] }
-reqwest = { version = "^0.12.24", default-features = false, features = ["json", "rustls-tls"] }
+octocrab = { version = "^0.45.0", default-features = false, features = ["rustls", "rustls-ring", "default-client"] }
+reqwest = { version = "^0.12.24", default-features = false, features = ["json", "rustls-tls", "rustls-tls-native-roots"] }
 serde = "^1.0.136"
 textwrap = "0.16.2"
 thiserror = "^2.0.17"
